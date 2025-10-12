@@ -37,7 +37,7 @@ nest-asyncio==1.6.0
 numpy==2.3.3
 opencv-python-headless==4.8-1.78
 packaging==25.0
-pandas==2.3.2
+pandas
 parso==0.8.5
 pillow==10.4.0
 platformdirs==4.4.0
