@@ -9,4 +9,6 @@ pytz==2025.2
 tzdata==2025.2
 packaging==25.0
 pyparsing==3.2.5
-handright==8.2.0    
+handright==8.2.0  
+matplotlib==3.10.7 
+
