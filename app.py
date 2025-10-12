@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from generate_pdf import generate_prescription
 from clumsy4 import generate_handwriting_dataset
-generate_handwriting_dataset(5)
+
 # --- Streamlit Page Setup ---
 st.set_page_config(layout="wide", page_title="🩺 MedSyn Synthetic Medical Form Generator")
 st.title("🩺 MedSyn Synthetic Medical Form Generator")
