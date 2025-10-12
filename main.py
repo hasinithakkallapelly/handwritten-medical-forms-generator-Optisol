@@ -1,0 +1,3 @@
+from clumsy4 import generate_handwriting_dataset
+
+generate_handwriting_dataset(5)
