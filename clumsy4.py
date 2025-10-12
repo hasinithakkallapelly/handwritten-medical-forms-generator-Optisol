@@ -51,7 +51,7 @@ def text_list_to_image(
     text_list,
     image_width=1024,
     line_height=100,
-    char_spacing=-6,
+    char_spacing=-5,
     blur_strength=(0.3, 0.8),
     rotation_range=(-3, 3),
     strikeout_prob=0.05,  # rare
