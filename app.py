@@ -32,8 +32,6 @@ if st.button("Generate Synthetic PDFs"):
         st.error("No patient images found! Please add handwritten images to the 'patient_images/' folder!")
     else:
         generate_handwriting_dataset(num_forms)
-
-
         
         generated_files = []
         for i in range(1, num_forms + 1):
