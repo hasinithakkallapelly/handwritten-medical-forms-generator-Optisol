@@ -1,158 +1,113 @@
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
-from reportlab.lib.colors import green, black
-import random
-import os
+from __future__ import annotations
 
-# === Random Clinic Names ===
-clinic_names = [
+import os
+import random
+
+from reportlab.lib.colors import HexColor, black
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+
+
+CLINIC_NAMES = (
     "Sunrise Medical Center",
     "TruHeal Clinic",
     "Apollo Family Care",
     "MedSyn Health Hub",
-    "St. Mary’s Health Point"
-]
+    "St. Mary's Health Point",
+)
 
-def generate_prescription(patient_image, signature_image, pdf_path):
-    """Generate a single synthetic prescription PDF with random consent image."""
+FORM_LABELS = {
+    "Prescription Form": ("Patient Details", "Clinical Notes", "Prescription", "Advice"),
+    "Patient Intake Form": ("Patient Details", "Reason for Visit", "Allergies", "Insurance"),
+    "Lab Request Form": ("Patient Details", "Clinical Notes", "Requested Tests", "Physician"),
+}
+
+
+def _draw_paper_texture(c: canvas.Canvas, width: float, height: float) -> None:
+    c.setFillColor(HexColor("#fbfaf6"))
+    c.rect(0, 0, width, height, stroke=0, fill=1)
+    c.setStrokeColor(HexColor("#ece7dc"))
+    c.setLineWidth(0.25)
+    for _ in range(80):
+        x = random.uniform(0, width)
+        y = random.uniform(0, height)
+        c.line(x, y, x + random.uniform(-12, 12), y + random.uniform(-3, 3))
+
+
+def _draw_header(c: canvas.Canvas, width: float, height: float, form_type: str) -> None:
+    accent = HexColor("#27745f")
+    c.setFillColor(accent)
+    c.roundRect(0.45 * inch, height - 1.25 * inch, width - 0.9 * inch, 0.78 * inch, 8, stroke=0, fill=1)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 22)
+    c.drawString(0.7 * inch, height - 0.82 * inch, random.choice(CLINIC_NAMES))
+    c.setFont("Helvetica", 10)
+    c.drawRightString(width - 0.7 * inch, height - 0.72 * inch, form_type)
+    c.drawRightString(width - 0.7 * inch, height - 0.93 * inch, "Synthetic data - not a real patient record")
+
+
+def _draw_form_lines(c: canvas.Canvas, width: float, height: float, form_type: str) -> None:
+    labels = FORM_LABELS.get(form_type, FORM_LABELS["Prescription Form"])
+    left = 0.55 * inch
+    top = height - 1.65 * inch
+    box_width = width - 1.1 * inch
+    row_height = 1.18 * inch
+
+    c.setStrokeColor(HexColor("#78a99a"))
+    c.setLineWidth(1.2)
+    c.roundRect(left, 1.55 * inch, box_width, top - 1.55 * inch, 6, stroke=1, fill=0)
+
+    c.setFont("Helvetica-Bold", 9)
+    c.setFillColor(HexColor("#27745f"))
+    y = top - 0.35 * inch
+    for label in labels:
+        c.drawString(left + 0.22 * inch, y, label.upper())
+        c.setStrokeColor(HexColor("#d7e4df"))
+        c.line(left + 0.22 * inch, y - 0.12 * inch, left + box_width - 0.22 * inch, y - 0.12 * inch)
+        y -= row_height
+
+
+def generate_medical_form(
+    handwriting_image: str,
+    signature_image: str | None,
+    pdf_path: str,
+    patient: dict[str, object] | None = None,
+    form_type: str = "Prescription Form",
+) -> None:
+    os.makedirs(os.path.dirname(pdf_path) or ".", exist_ok=True)
     c = canvas.Canvas(pdf_path, pagesize=A4)
     width, height = A4
 
-    border_margin = 0.4 * inch
-    inner_margin = 0.3 * inch
+    _draw_paper_texture(c, width, height)
+    _draw_header(c, width, height, form_type)
+    _draw_form_lines(c, width, height, form_type)
 
-    # === Outer Border ===
-    c.setLineWidth(3)
-    c.setStrokeColor(black)
-    c.rect(border_margin, border_margin, width - 2 * border_margin, height - 1.5 * border_margin)
+    if os.path.exists(handwriting_image):
+        c.drawImage(
+            handwriting_image,
+            1.0 * inch,
+            2.25 * inch,
+            width=width - 2.0 * inch,
+            height=4.75 * inch,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
 
-    # === Header (Clinic Name) ===
-    header_height = 1.3 * inch
-    c.setLineWidth(2.5)
-    c.setStrokeColor(green)
-    c.rect(border_margin + inner_margin, height - border_margin - header_height,
-           width - 2 * (border_margin + inner_margin), header_height)
-    c.setFont("Helvetica-Bold", 24)
-    c.setFillColor(green)
-    clinic_name = random.choice(clinic_names)
-    c.drawCentredString(width / 2, height - border_margin - header_height / 2 + 6, clinic_name)
+    c.setStrokeColor(HexColor("#78a99a"))
+    c.setLineWidth(1)
+    c.line(width - 2.65 * inch, 1.2 * inch, width - 0.75 * inch, 1.2 * inch)
 
-    # === Content Box (Patient Info) ===
-    content_y_top = height - border_margin - 1.2 * header_height + 1.8 * inner_margin
-    content_height = content_y_top - border_margin - 2 * inch
-    c.setLineWidth(2)
-    c.setStrokeColor(green)
-    c.rect(border_margin + inner_margin, border_margin + 1.5 * inch,
-           width - 2 * (border_margin + inner_margin), content_height)
-
-    # === Field Labels ===
-    labels = ["Name", "Date of Birth", "Main Complaint", "Allergies", "Medications", "Insurance"]
-    label_x = border_margin + 1 * inch
-    image_x = width / 2.5
-    start_y = content_y_top - 1.5 * inch
-    gap = 0.8 * inch
-
-    c.setFont("Helvetica-Bold", 18)
-    c.setFillColor(green)
-    y = start_y
-    for label in labels:
-        c.drawString(label_x, y, label + ":")
-        y -= gap
-
-    # === Patient Image (Right Side) ===
-    if os.path.exists(patient_image):
-        image_width = 4.1 * inch
-        image_height = len(labels) * gap * 1.2
-        c.drawImage(patient_image, image_x, start_y - image_height + 0.8 * inch,
-                    width=image_width, height=image_height, mask='auto')
-
-    # === Random Consent Image (from 'generated/' folder) ===
-    consent_folder = "generated/"
-    consent_images = [os.path.join(consent_folder, f) for f in os.listdir(consent_folder)
-                  if f.lower().endswith((".png", ".jpg", ".jpeg"))]
-
-    if consent_images:
-        consent_image = random.choice(consent_images)
-
-    # Bottom of patient details
-    patient_details_bottom = start_y - len(labels) * gap - 0.1*inch  # slight gap after last label
-
-    # Top of footer
-    footer_height = 1 * inch
-    footer_top = border_margin + footer_height + inner_margin + 0.05*inch
-
-    # Available height for consent image (3/4 of vertical space)
-    available_height = patient_details_bottom - footer_top
-    consent_height = available_height * 0.75
-
-    # Maximum width inside borders
-    max_consent_width = width - 2 * (border_margin + inner_margin)
-
-    # Load image and preserve aspect ratio
-    from PIL import Image as PILImage
-    pil_img = PILImage.open(consent_image)
-    w, h = pil_img.size
-    aspect_ratio = w / h
-
-    # Scale width and height proportionally
-    if consent_height * aspect_ratio <= max_consent_width:
-        consent_w = consent_height * aspect_ratio
-        consent_h = consent_height
-    else:
-        consent_w = max_consent_width
-        consent_h = max_consent_width / aspect_ratio
-
-    # Increase width by 20% but stay within max width
-    consent_w = min(consent_w * 1.2, max_consent_width)
-    consent_h = consent_w / aspect_ratio  # adjust height to preserve ratio
-
-    # Slightly raise the image (shift up)
-    shift_up = 0.6 * inch
-    consent_y = footer_top + shift_up
-
-    # Draw the consent image, centered horizontally
-    c.drawImage(
-        consent_image,
-        border_margin + inner_margin + (max_consent_width - consent_w)/2,
-        consent_y,
-        width=consent_w,
-        height=consent_h,
-        preserveAspectRatio=True,
-        mask='auto'
-    )
-
-
-    # === Footer (Doctor Signature Section) ===
-    footer_height = 1 * inch
-    c.setLineWidth(2)
-    c.setStrokeColor(green)
-    c.rect(border_margin + inner_margin, border_margin + inner_margin,
-           width - 2 * (border_margin + inner_margin), footer_height)
-
-    # === Doctor Signature ===
     if signature_image and os.path.exists(signature_image):
-        sig_w = 2.5 * inch
-        sig_h = 0.7 * inch
-        sig_x = width - border_margin - inner_margin - sig_w - 0.2 * inch
-        sig_y = border_margin + inner_margin + 0.15 * inch
-        c.drawImage(signature_image, sig_x, sig_y, width=sig_w, height=sig_h, mask='auto')
+        c.drawImage(signature_image, width - 2.65 * inch, 1.25 * inch, width=1.8 * inch, height=0.55 * inch, preserveAspectRatio=True, mask="auto")
 
-    # === Footer Text ===
-    c.setFont("Helvetica-Oblique", 10)
+    c.setFont("Helvetica", 8)
     c.setFillColor(black)
-    c.drawString(border_margin + inner_margin, border_margin + inner_margin / 2,
-                 "Generated by MedSyn Form System")
-
+    doctor = patient.get("doctor", "Synthetic Physician") if patient else "Synthetic Physician"
+    c.drawRightString(width - 0.75 * inch, 0.92 * inch, str(doctor))
+    c.drawString(0.55 * inch, 0.55 * inch, "Generated by MedSyn Form System | Synthetic sample only")
     c.save()
-    print(f"✅ Prescription PDF saved at: {pdf_path}")
 
 
-# === Example Usage ===
-if __name__ == "__main__":
-    generate_prescription(
-        patient_image="patient_sample.png",   # Replace with your actual path
-        signature_image="doctor_sign.png",    # Replace with your actual path
-        pdf_path="final_prescription.pdf"
-    )
-
+def generate_prescription(patient_image: str, signature_image: str | None, pdf_path: str) -> None:
+    generate_medical_form(patient_image, signature_image, pdf_path, form_type="Prescription Form")

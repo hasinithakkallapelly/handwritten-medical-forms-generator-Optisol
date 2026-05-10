@@ -1,80 +1,194 @@
-import streamlit as st
+from __future__ import annotations
+
+import base64
 import os
-import zipfile
 import random
-import pandas as pd
+import zipfile
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-from generate_pdf import generate_prescription
-from clumsy4 import generate_handwriting_dataset
+import pandas as pd
+import streamlit as st
 
-# --- Streamlit Page Setup ---
-st.set_page_config(layout="wide", page_title="🩺 MedSyn Synthetic Medical Form Generator")
-st.title("🩺 MedSyn Synthetic Medical Form Generator")
-st.caption("Generate realistic handwritten-style medical prescription PDFs with AI-driven diversity.")
+from generate_pdf import generate_medical_form
+from handwriting_generator import generate_handwriting_dataset
+from ocr_evaluator import evaluate_ocr_results
 
-# --- Sidebar Controls ---
-st.sidebar.header("⚙️ Settings")
-num_forms = st.sidebar.number_input("Number of Forms to Generate", 1, 1000, 5)
-form_type = st.sidebar.selectbox("Form Type", ["Prescription Form"])
-st.sidebar.markdown("---")
 
-# --- Paths ---
-os.makedirs("patient_images", exist_ok=True)
-os.makedirs("signatures", exist_ok=True)
-os.makedirs("generated_pdfs", exist_ok=True)
+st.set_page_config(layout="wide", page_title="MedSyn Synthetic Medical Forms")
 
-patient_images = [os.path.join("patient_images", f) for f in os.listdir("patient_images") if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-signature_images = [os.path.join("signatures", f) for f in os.listdir("signatures") if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+FORM_TYPES = ["Prescription Form", "Patient Intake Form", "Lab Request Form"]
+OUTPUT_DIR = Path("generated_pdfs")
+PATIENT_IMAGE_DIR = Path("patient_images")
+CLEAN_IMAGE_DIR = Path("clean_img")
+SIGNATURE_DIR = Path("signatures")
 
-# --- Main Button ---
-if st.button("Generate Synthetic PDFs"):
-    if not patient_images:
-        st.error("No patient images found! Please add handwritten images to the 'patient_images/' folder!")
-    else:
-        generate_handwriting_dataset(num_forms)
-        
-        generated_files = []
-        for i in range(1, num_forms + 1):
-            patient_img = random.choice(patient_images)
-            signature_img = random.choice(signature_images) if signature_images else None
-            pdf_path = f"generated_pdfs/prescription_{i:03d}.pdf"
-            generate_prescription(patient_img, signature_img, pdf_path)
-            generated_files.append(pdf_path)
 
-        # Create ZIP file
-        zip_path = "generated_pdfs/generated_forms.zip"
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for file in generated_files:
-                zipf.write(file, os.path.basename(file))
+def _signature_images() -> list[str]:
+    if not SIGNATURE_DIR.exists():
+        return []
+    return [str(path) for path in SIGNATURE_DIR.iterdir() if path.suffix.lower() in {".png", ".jpg", ".jpeg"}]
 
-        st.success(f"✅ Successfully generated {num_forms} synthetic prescriptions!")
-        st.download_button("📥 Download All PDFs (ZIP)", data=open(zip_path, "rb"), file_name="synthetic_prescriptions.zip")
 
-        # --- Visualization Section ---
-        st.markdown("## 📊 Synthetic Data Insights")
-        st.write("Below are some sample insights based on the generated data (for presentation).")
+def _pdf_preview(path: str) -> None:
+    with open(path, "rb") as file:
+        encoded = base64.b64encode(file.read()).decode("utf-8")
+    st.markdown(
+        f'<iframe src="data:application/pdf;base64,{encoded}" width="100%" height="560" type="application/pdf"></iframe>',
+        unsafe_allow_html=True,
+    )
 
-        fake_stats = pd.DataFrame({
-            "Age Group": ["0-18", "19-35", "36-60", "60+"],
-            "Patients": [random.randint(5, 15) for _ in range(4)],
-            "Common Issue": ["Cold/Fever", "Headache", "Hypertension", "Arthritis"]
-        })
+
+def _zip_files(pdf_paths: list[str]) -> str:
+    zip_path = OUTPUT_DIR / "synthetic_medical_forms.zip"
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zipf:
+        for file in pdf_paths:
+            zipf.write(file, Path(file).name)
+    return str(zip_path)
+
+
+def _ground_truth_dataframe(records: list[dict[str, object]], pdf_paths: list[str]) -> pd.DataFrame:
+    rows = []
+    for record, pdf_path in zip(records, pdf_paths):
+        patient = dict(record["patient"])
+        patient.update(
+            {
+                "filename": Path(pdf_path).name,
+                "form_type": patient.get("form_type", ""),
+                "handwriting_image": Path(str(record["handwriting_image"])).name,
+                "ground_truth_text": record["ground_truth_text"],
+            }
+        )
+        rows.append(patient)
+    return pd.DataFrame(rows)
+
+
+for directory in (OUTPUT_DIR, PATIENT_IMAGE_DIR, CLEAN_IMAGE_DIR):
+    directory.mkdir(exist_ok=True)
+
+st.title("MedSyn Synthetic Medical Forms")
+st.caption("Generate privacy-safe handwritten medical PDFs for OCR demos, training prototypes, and document AI experiments.")
+
+with st.sidebar:
+    st.header("Generation")
+    num_forms = st.number_input("Forms", min_value=1, max_value=250, value=5, step=1)
+    form_type = st.selectbox("Form type", FORM_TYPES)
+    include_signatures = st.toggle("Doctor signatures", value=True)
+    noise_std = st.slider("Scan noise", 0.0, 25.0, 10.0, 1.0)
+    warp_strength = st.slider("Handwriting warp", 0.0, 5.0, 2.0, 0.5)
+    strikeout_prob = st.slider("Strikeouts", 0.0, 0.15, 0.03, 0.01)
+    scribble_prob = st.slider("Scribbles", 0.0, 0.15, 0.03, 0.01)
+
+left, right = st.columns([0.62, 0.38])
+
+with left:
+    st.subheader("Generator")
+    st.write("Create synthetic records, render handwriting, place the result on medical templates, then export PDFs.")
+    generate = st.button("Generate forms", type="primary", use_container_width=True)
+
+with right:
+    st.subheader("Repository health")
+    st.metric("Supported templates", len(FORM_TYPES))
+    st.metric("Synthetic only", "Yes")
+
+if generate:
+    signatures = _signature_images() if include_signatures else []
+
+    progress = st.progress(0)
+    status = st.empty()
+    status.write("Generating handwriting samples...")
+
+    try:
+        records = generate_handwriting_dataset(
+            n=int(num_forms),
+            clean_dir=str(CLEAN_IMAGE_DIR),
+            clumsy_dir=str(PATIENT_IMAGE_DIR),
+            form_type=form_type,
+            warp_strength=float(warp_strength),
+            noise_std=float(noise_std),
+            strikeout_prob=float(strikeout_prob),
+            scribble_prob=float(scribble_prob),
+        )
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+
+    generated_files: list[str] = []
+    for index, record in enumerate(records, start=1):
+        status.write(f"Rendering PDF {index} of {len(records)}...")
+        signature = random.choice(signatures) if signatures else None
+        pdf_path = OUTPUT_DIR / f"{form_type.lower().replace(' ', '_')}_{index:03d}.pdf"
+        record["patient"]["form_type"] = form_type
+        generate_medical_form(
+            handwriting_image=str(record["handwriting_image"]),
+            signature_image=signature,
+            pdf_path=str(pdf_path),
+            patient=record["patient"],
+            form_type=form_type,
+        )
+        generated_files.append(str(pdf_path))
+        progress.progress(index / len(records))
+
+    zip_path = _zip_files(generated_files)
+    ground_truth = _ground_truth_dataframe(records, generated_files)
+    ground_truth_path = OUTPUT_DIR / "ground_truth.csv"
+    ground_truth.to_csv(ground_truth_path, index=False)
+    status.empty()
+    st.success(f"Generated {len(generated_files)} synthetic {form_type.lower()} PDFs.")
+
+    preview_record = records[0]
+    preview_pdf = generated_files[0]
+    preview_patient = preview_record["patient"]
+
+    tab_pdf, tab_handwriting, tab_data, tab_eval, tab_downloads = st.tabs(
+        ["PDF preview", "Handwriting", "Ground truth", "OCR evaluation", "Downloads"]
+    )
+    with tab_pdf:
+        _pdf_preview(preview_pdf)
+    with tab_handwriting:
+        st.image(str(preview_record["handwriting_image"]), use_container_width=True)
+    with tab_data:
+        st.dataframe(ground_truth, use_container_width=True)
 
         col1, col2 = st.columns(2)
         with col1:
             fig, ax = plt.subplots()
-            ax.bar(fake_stats["Age Group"], fake_stats["Patients"])
-            plt.title("Distribution of Patients by Age Group")
+            ground_truth["condition"].value_counts().plot(kind="bar", ax=ax)
+            ax.set_title("Generated conditions")
+            ax.set_xlabel("")
+            ax.set_ylabel("Forms")
             st.pyplot(fig)
         with col2:
             fig2, ax2 = plt.subplots()
-            ax2.pie(fake_stats["Patients"], labels=fake_stats["Age Group"], autopct="%1.1f%%", startangle=90)
-            plt.title("Age Group Proportion")
+            ground_truth["age"].plot(kind="hist", bins=8, ax=ax2)
+            ax2.set_title("Synthetic age distribution")
+            ax2.set_xlabel("Age")
             st.pyplot(fig2)
 
-        st.markdown("### Health Insight Summary")
-        st.info(
-            "Majority of generated patient data falls within the **19–35** age range, showing common issues such as **fever, fatigue, and mild infections**. "
-            "This indicates a trend toward lifestyle-related health cases and emphasizes the need for preventive awareness programs."
-        )
-
+        st.info(f"Preview patient: {preview_patient['name']} | {preview_patient['condition']} | {preview_patient['medications']}")
+    with tab_eval:
+        st.write("Upload OCR results with `filename` and `ocr_text` columns to benchmark extracted text against the synthetic ground truth.")
+        uploaded = st.file_uploader("OCR results CSV", type=["csv"])
+        if uploaded is not None:
+            try:
+                ocr_results = pd.read_csv(uploaded)
+                evaluation = evaluate_ocr_results(ground_truth, ocr_results)
+                st.metric("Average similarity", f"{evaluation['similarity'].mean():.1f}%")
+                st.dataframe(evaluation, use_container_width=True)
+                st.download_button(
+                    "Download OCR evaluation CSV",
+                    evaluation.to_csv(index=False),
+                    file_name="ocr_evaluation.csv",
+                    mime="text/csv",
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+    with tab_downloads:
+        with open(preview_pdf, "rb") as file:
+            st.download_button("Download preview PDF", file, file_name=Path(preview_pdf).name, mime="application/pdf")
+        with open(ground_truth_path, "rb") as file:
+            st.download_button("Download ground truth CSV", file, file_name="ground_truth.csv", mime="text/csv")
+        with open(zip_path, "rb") as file:
+            st.download_button("Download all PDFs as ZIP", file, file_name="synthetic_medical_forms.zip", mime="application/zip")
+else:
+    st.info("Choose generation settings in the sidebar, then generate a batch to preview and download.")

@@ -1,0 +1,9 @@
+{
+  "name": "Patient Intake Form",
+  "sections": [
+    "Patient Details",
+    "Reason for Visit",
+    "Allergies",
+    "Insurance"
+  ]
+}
