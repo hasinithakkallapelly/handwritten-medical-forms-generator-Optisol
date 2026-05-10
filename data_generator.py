@@ -1,155 +1,150 @@
-from faker import Faker
+from __future__ import annotations
+
 import random
+from dataclasses import dataclass
+from datetime import date
+
+from faker import Faker
+
 
 fake = Faker()
 
-# List of possible complaints
-complaints_list = [
-    "Fever", "Headache", "Cold", "Cough", "Sore Throat",
-    "Body Pain", "Fatigue", "Nausea", "Vomiting", "Abdominal Pain",
-    "Breathing Difficulty", "Joint Pain", "Swelling", "Skin Rash",
-    "Itching", "Dizziness", "Weakness", "Chest Pain", "Palpitations",
-    "Loss of Appetite", "Back Pain", "Neck Pain", "Ear Pain",
-    "Toothache", "Runny Nose", "Sneezing", "Eye Irritation",
-    "Blurred Vision", "Burning Sensation", "Constipation",
-    "Diarrhea", "Acidity", "Heartburn", "Gas", "Bloating",
-    "Urinary Pain", "Frequent Urination", "Loss of Consciousness",
-    "Anxiety", "Depression", "Insomnia", "Weight Loss",
-    "Weight Gain", "Tremors", "Bleeding", "Cramps",
-    "Numbness", "Tingling Sensation", "Loss of Balance",
-    "Memory Loss", "Confusion", "Dry Mouth", "Hoarseness",
-    "Mouth Ulcers", "Nose Bleed", "Back Stiffness", "Shoulder Pain",
-    "Muscle Spasm", "Pain While Walking", "Swollen Glands",
-    "Difficulty Swallowing", "Change in Voice", "Excessive Sweating",
-    "Cold Hands or Feet", "Yellowing of Eyes", "Dark Urine",
-    "Loss of Taste", "Loss of Smell", "Chills", "Night Sweats",
-    "Hair Loss", "Acne", "Dry Skin", "Sun Sensitivity",
-    "Wound Not Healing", "Irregular Heartbeat", "Shortness of Breath",
-    "Fainting", "Restlessness", "Irritability", "Decreased Urine Output",
-    "Swelling of Legs", "Painful Menstruation", "Irregular Periods",
-    "Excessive Thirst", "Blurred Speech", "Tiredness",
-    "General Weakness", "Malaise", ""
-]
+
+@dataclass(frozen=True)
+class ConditionProfile:
+    condition: str
+    complaints: tuple[str, ...]
+    medications: tuple[str, ...]
+    advice: tuple[str, ...]
 
 
-# List of possible medications
-medications_list = [
-    # 🔹 Analgesics / Antipyretics
-    "Paracetamol", "Ibuprofen", "Diclofenac", "Naproxen", "Aspirin",
-    "Aceclofenac", "Tramadol", "Mefenamic Acid", "Ketorolac",
+CONDITION_PROFILES = (
+    ConditionProfile(
+        "Upper respiratory infection",
+        ("Fever", "Cough", "Sore throat", "Runny nose", "Fatigue"),
+        ("Paracetamol", "Cetirizine", "Cough syrup", "Azithromycin"),
+        ("Hydration", "Steam inhalation", "Review if fever persists"),
+    ),
+    ConditionProfile(
+        "Hypertension follow-up",
+        ("Headache", "Dizziness", "Fatigue", "Palpitations"),
+        ("Amlodipine", "Losartan", "Metoprolol", "Hydrochlorothiazide"),
+        ("Low-salt diet", "BP log for 7 days", "Follow up in 2 weeks"),
+    ),
+    ConditionProfile(
+        "Type 2 diabetes review",
+        ("Excessive thirst", "Frequent urination", "Tiredness", "Blurred vision"),
+        ("Metformin", "Glimepiride", "Insulin", "Vitamin B12"),
+        ("Check fasting glucose", "Foot care advice", "Dietician referral"),
+    ),
+    ConditionProfile(
+        "Gastritis",
+        ("Acidity", "Heartburn", "Nausea", "Abdominal pain", "Bloating"),
+        ("Pantoprazole", "Ondansetron", "Antacid syrup", "Sucralfate"),
+        ("Avoid spicy food", "Small frequent meals", "Review in 5 days"),
+    ),
+    ConditionProfile(
+        "Musculoskeletal pain",
+        ("Back pain", "Joint pain", "Muscle spasm", "Shoulder pain"),
+        ("Ibuprofen", "Diclofenac gel", "Paracetamol", "Calcium carbonate"),
+        ("Rest", "Warm compress", "Physiotherapy if persistent"),
+    ),
+)
 
-    # 🔹 Antibiotics
-    "Amoxicillin", "Ciprofloxacin", "Azithromycin", "Doxycycline",
-    "Cephalexin", "Cefixime", "Metronidazole", "Clarithromycin",
-    "Amoxicillin-Clavulanate", "Levofloxacin",
+ALLERGIES = (
+    "No known allergies",
+    "Penicillin",
+    "Amoxicillin",
+    "NSAIDs",
+    "Ibuprofen",
+    "Aspirin",
+    "Sulfa drugs",
+    "Latex",
+    "Contrast dye",
+)
 
-    # 🔹 Antihistamines / Anti-allergic
-    "Cetirizine", "Loratadine", "Fexofenadine", "Chlorpheniramine",
-    "Levocetirizine", "Diphenhydramine", "Montelukast", "Desloratadine",
-
-    # 🔹 Gastrointestinal
-    "Ranitidine", "Omeprazole", "Pantoprazole", "Esomeprazole",
-    "Rabeprazole", "Domperidone", "Ondansetron", "Metoclopramide",
-    "Sucralfate", "Antacid Syrup",
-
-    # 🔹 Respiratory
-    "Salbutamol", "Budesonide Inhaler", "Levosalbutamol", "Theophylline",
-    "Formoterol", "Ipratropium Bromide", "Cough Syrup", "Ambroxol",
-
-    # 🔹 Cardiovascular
-    "Nitroglycerin", "Amlodipine", "Losartan", "Metoprolol",
-    "Atenolol", "Enalapril", "Clopidogrel", "Atorvastatin",
-    "Furosemide", "Hydrochlorothiazide",
-
-    # 🔹 Endocrine / Metabolic
-    "Insulin", "Metformin", "Glimepiride", "Thyroxine", "Prednisolone",
-    "Hydrocortisone", "Dexamethasone", "Methylprednisolone",
-
-    # 🔹 Vitamins / Supplements
-    "Iron Supplements", "Vitamin D", "Vitamin B12", "Folic Acid",
-    "Calcium Carbonate", "Multivitamin", "Zinc Sulphate",
-
-    # 🔹 Dermatological
-    "Hydrocortisone Cream", "Clotrimazole Cream", "Miconazole",
-    "Betamethasone Cream", "Neomycin Ointment", "Calamine Lotion",
-
-    # 🔹 Neurological / Psychiatric
-    "Diazepam", "Alprazolam", "Sertraline", "Fluoxetine",
-    "Amitriptyline", "Gabapentin", "Pregabalin",
-
-    # 🔹 Miscellaneous
-    "ORS Solution", "Loperamide", "Paracetamol Syrup",
-    "Eye Drops (Lubricant)", "Nasal Spray", "Pain Relief Gel", ""
-]
-
-
-# Allergies
-allergies_list = [
-    # 🔹 Common Responses
-    "None", "Unknown", "No Known Allergies", "NKA",
-
-    # 🔹 Drug Allergies
-    "Penicillin", "Amoxicillin", "Cephalosporins", "Sulfa Drugs",
-    "Aspirin", "NSAIDs", "Ibuprofen", "Codeine", "Morphine",
-    "Paracetamol", "Erythromycin", "Tetracycline", "Insulin",
-    "Local Anesthetics", "Lidocaine", "Carbamazepine",
-    "Phenytoin", "Vancomycin",
-
-    # 🔹 Food Allergies
-    "Peanuts", "Tree Nuts", "Milk", "Eggs", "Soy", "Wheat",
-    "Gluten", "Shellfish", "Seafood", "Fish", "Sesame",
-    "Corn", "Strawberries", "Kiwi", "Banana",
-
-    # 🔹 Environmental Allergies
-    "Dust", "Pollen", "Mold", "Grass", "Animal Dander",
-    "Cat Dander", "Dog Dander", "House Dust Mites",
-    "Insect Stings", "Bee Venom", "Cockroach Allergen",
-
-    # 🔹 Material / Contact Allergies
-    "Latex", "Nickel", "Fragrance", "Detergents", "Dyes",
-    "Formaldehyde", "Cosmetics", "Adhesive Tape",
-    "Sunscreen", "Rubber",
-
-    # 🔹 Others / Rare
-    "Iodine", "Contrast Dye", "Acrylic", "Alcohol",
-    "Preservatives", "Caffeine", "Vaccine Components", ""
-]
+INSURANCE_PROVIDERS = (
+    "Blue Insurance",
+    "HealthSure",
+    "MediCover",
+    "CarePlus",
+    "SafeLife Health",
+    "WellnessCo",
+    "MediTrust",
+    "PrimeCare",
+    "Self pay",
+)
 
 
-# Insurance
-insurance_list = [
-    "Blue Insurance", "HealthSure", "MediCover", "CarePlus",
-    "SafeLife Health", "WellnessCo", "MediTrust", "PrimeCare",
-    "HealthGuard", "CureShield", "LifeSecure", "VitalOne",
-    "NovaHealth", "Apex Insurance", "TruHealth", "ProCare",
-    "AssureLife", "Guardian Health", "OptiCare", "Medisure",
-    "Pioneer Health", "Harbor Health", "SummitCare", "Everwell Insurance",
-    "BrightPath Health", "CrestaCare", "Horizon Health", "Zenith Health Plans",
-    "Silverline Insurance", "Rosewood Health", "Pillar Health", "Nimbus Care",
-    "Cobalt Health", "SageWell Insurance", "MapleCare", "Orchid Health",
-    "Beacon Health", "Meridian Insurance", "Willow Health", "Cascade Care",
-    ""
-]
+def _age_from_dob(dob: date) -> int:
+    today = date.today()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
-def generate_fake_patient():
-    # Random number of complaints (1–3), join as string
-    complaints = ", ".join(random.sample(complaints_list, k=random.randint(1,3)))
-    # Random number of medications (1–3), join as string
-    medications = ", ".join(random.sample(medications_list, k=random.randint(1,3)))
-    
+
+def _safe_medications(profile: ConditionProfile, allergy: str) -> list[str]:
+    choices = list(profile.medications)
+    allergy_key = allergy.lower()
+
+    filtered = [med for med in choices if allergy_key not in med.lower()]
+    if allergy_key == "penicillin":
+        filtered = [med for med in filtered if "amoxicillin" not in med.lower()]
+    if allergy_key == "nsaids":
+        filtered = [med for med in filtered if med.lower() not in {"ibuprofen", "aspirin"}]
+
+    if not filtered:
+        filtered = ["Paracetamol"]
+
+    return random.sample(filtered, k=min(random.randint(1, 3), len(filtered)))
+
+
+def generate_fake_patient() -> dict[str, str | int]:
+    profile = random.choice(CONDITION_PROFILES)
+    dob = fake.date_of_birth(minimum_age=18, maximum_age=85)
+    allergy = random.choice(ALLERGIES)
+    medications = _safe_medications(profile, allergy)
+    complaints = random.sample(profile.complaints, k=min(random.randint(1, 3), len(profile.complaints)))
+
+    return {
+        "name": fake.name(),
+        "date_of_birth": dob.strftime("%Y-%m-%d"),
+        "age": _age_from_dob(dob),
+        "condition": profile.condition,
+        "complaints": ", ".join(complaints),
+        "allergies": allergy,
+        "medications": ", ".join(medications),
+        "insurance": random.choice(INSURANCE_PROVIDERS),
+        "doctor": f"Dr. {fake.last_name()}",
+        "visit_date": fake.date_between(start_date="-30d", end_date="today").strftime("%Y-%m-%d"),
+        "advice": random.choice(profile.advice),
+    }
+
+
+def patient_to_lines(patient: dict[str, str | int], form_type: str = "Prescription Form") -> list[str]:
+    if form_type == "Patient Intake Form":
+        return [
+            f"Name: {patient['name']}",
+            f"DOB: {patient['date_of_birth']}   Age: {patient['age']}",
+            f"Reason: {patient['complaints']}",
+            f"Allergies: {patient['allergies']}",
+            f"Insurance: {patient['insurance']}",
+            f"Date: {patient['visit_date']}",
+        ]
+
+    if form_type == "Lab Request Form":
+        return [
+            f"Patient: {patient['name']}",
+            f"DOB: {patient['date_of_birth']}   Age: {patient['age']}",
+            f"Clinical note: {patient['condition']}",
+            f"Symptoms: {patient['complaints']}",
+            "Tests: CBC, FBS, HbA1c, Urine routine",
+            f"Requested by: {patient['doctor']}",
+        ]
+
     return [
-        fake.name(),
-        fake.date_of_birth(minimum_age=18, maximum_age=85).strftime("%Y-%m-%d"),
-        complaints,       # comma-separated string
-        random.choice(allergies_list),
-        medications,      # comma-separated string
-        random.choice(insurance_list)
+        f"Name: {patient['name']}",
+        f"DOB: {patient['date_of_birth']}   Age: {patient['age']}",
+        f"Complaint: {patient['complaints']}",
+        f"Diagnosis: {patient['condition']}",
+        f"Rx: {patient['medications']}",
+        f"Advice: {patient['advice']}",
     ]
-
-# Generate multiple patients
-# n = 10000
-# patients_list_of_lists = [generate_fake_patient() for _ in range(n)]
-
-# # Display
-# for patient in patients_list_of_lists:
-#     print(patient)

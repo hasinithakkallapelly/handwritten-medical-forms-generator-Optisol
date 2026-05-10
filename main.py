@@ -1,3 +1,5 @@
-from clumsy4 import generate_handwriting_dataset
+from handwriting_generator import generate_handwriting_dataset
 
-generate_handwriting_dataset(5)
+
+if __name__ == "__main__":
+    generate_handwriting_dataset(5)
