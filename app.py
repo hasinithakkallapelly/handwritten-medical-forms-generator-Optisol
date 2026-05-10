@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import base64
 import os
 import random
 import zipfile
 from pathlib import Path
 
+import fitz
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
@@ -31,12 +31,10 @@ def _signature_images() -> list[str]:
 
 
 def _pdf_preview(path: str) -> None:
-    with open(path, "rb") as file:
-        encoded = base64.b64encode(file.read()).decode("utf-8")
-    st.markdown(
-        f'<iframe src="data:application/pdf;base64,{encoded}" width="100%" height="560" type="application/pdf"></iframe>',
-        unsafe_allow_html=True,
-    )
+    doc = fitz.open(path)
+    page = doc.load_page(0)
+    pix = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
+    st.image(pix.tobytes("png"), use_container_width=True)
 
 
 def _zip_files(pdf_paths: list[str]) -> str:
@@ -99,6 +97,17 @@ if generate:
     status.write("Generating handwriting samples...")
 
     try:
+        records = generate_handwriting_dataset(
+            n=int(num_forms),
+            clean_dir=str(CLEAN_IMAGE_DIR),
+            clumsy_dir=str(PATIENT_IMAGE_DIR),
+            form_type=form_type,
+            warp_strength=float(warp_strength),
+            noise_std=float(noise_std),
+            strikeout_prob=float(strikeout_prob),
+            scribble_prob=float(scrib_prob),
+        )
+    except NameError:
         records = generate_handwriting_dataset(
             n=int(num_forms),
             clean_dir=str(CLEAN_IMAGE_DIR),
