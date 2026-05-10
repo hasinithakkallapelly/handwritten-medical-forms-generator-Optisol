@@ -68,6 +68,28 @@ def _draw_form_lines(c: canvas.Canvas, width: float, height: float, form_type: s
         y -= row_height
 
 
+def _draw_handwriting_image(c: canvas.Canvas, handwriting_image: str, width: float, height: float) -> None:
+    if not os.path.exists(handwriting_image):
+        return
+
+    # Keep the printed form labels readable by reserving a left label column.
+    image_x = 2.05 * inch
+    image_y = 2.35 * inch
+    image_width = width - image_x - 0.9 * inch
+    image_height = 5.15 * inch
+
+    c.drawImage(
+        handwriting_image,
+        image_x,
+        image_y,
+        width=image_width,
+        height=image_height,
+        preserveAspectRatio=True,
+        anchor="nw",
+        mask="auto",
+    )
+
+
 def generate_medical_form(
     handwriting_image: str,
     signature_image: str | None,
@@ -83,16 +105,7 @@ def generate_medical_form(
     _draw_header(c, width, height, form_type)
     _draw_form_lines(c, width, height, form_type)
 
-    if os.path.exists(handwriting_image):
-        c.drawImage(
-            handwriting_image,
-            1.0 * inch,
-            2.25 * inch,
-            width=width - 2.0 * inch,
-            height=4.75 * inch,
-            preserveAspectRatio=True,
-            mask="auto",
-        )
+    _draw_handwriting_image(c, handwriting_image, width, height)
 
     c.setStrokeColor(HexColor("#78a99a"))
     c.setLineWidth(1)
