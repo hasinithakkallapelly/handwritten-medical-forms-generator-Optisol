@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import random
 
-from reportlab.lib.colors import HexColor, black
+from reportlab.lib.colors import HexColor, black, green
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
@@ -18,65 +18,81 @@ CLINIC_NAMES = (
 )
 
 FORM_LABELS = {
-    "Prescription Form": ("Patient Details", "Clinical Notes", "Prescription", "Advice"),
-    "Patient Intake Form": ("Patient Details", "Reason for Visit", "Allergies", "Insurance"),
-    "Lab Request Form": ("Patient Details", "Clinical Notes", "Requested Tests", "Physician"),
+    "Prescription Form": ("Name", "Date of Birth", "Main Complaint", "Diagnosis", "Medications", "Advice"),
+    "Patient Intake Form": ("Name", "Date of Birth", "Reason for Visit", "Allergies", "Insurance", "Visit Date"),
+    "Lab Request Form": ("Patient", "Date of Birth", "Clinical Note", "Symptoms", "Requested Tests", "Physician"),
 }
 
 
-def _draw_paper_texture(c: canvas.Canvas, width: float, height: float) -> None:
-    c.setFillColor(HexColor("#fbfaf6"))
-    c.rect(0, 0, width, height, stroke=0, fill=1)
-    c.setStrokeColor(HexColor("#ece7dc"))
-    c.setLineWidth(0.25)
-    for _ in range(80):
-        x = random.uniform(0, width)
-        y = random.uniform(0, height)
-        c.line(x, y, x + random.uniform(-12, 12), y + random.uniform(-3, 3))
-
-
-def _draw_header(c: canvas.Canvas, width: float, height: float, form_type: str) -> None:
-    accent = HexColor("#27745f")
-    c.setFillColor(accent)
-    c.roundRect(0.45 * inch, height - 1.25 * inch, width - 0.9 * inch, 0.78 * inch, 8, stroke=0, fill=1)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 22)
-    c.drawString(0.7 * inch, height - 0.82 * inch, random.choice(CLINIC_NAMES))
-    c.setFont("Helvetica", 10)
-    c.drawRightString(width - 0.7 * inch, height - 0.72 * inch, form_type)
-    c.drawRightString(width - 0.7 * inch, height - 0.93 * inch, "Synthetic data - not a real patient record")
-
-
-def _draw_form_lines(c: canvas.Canvas, width: float, height: float, form_type: str) -> None:
+def _draw_original_style_form(c: canvas.Canvas, width: float, height: float, form_type: str) -> tuple[float, float, float, float]:
     labels = FORM_LABELS.get(form_type, FORM_LABELS["Prescription Form"])
-    left = 0.55 * inch
-    top = height - 1.65 * inch
-    box_width = width - 1.1 * inch
-    row_height = 1.18 * inch
+    border_margin = 0.4 * inch
+    inner_margin = 0.3 * inch
+    header_height = 1.3 * inch
 
-    c.setStrokeColor(HexColor("#78a99a"))
-    c.setLineWidth(1.2)
-    c.roundRect(left, 1.55 * inch, box_width, top - 1.55 * inch, 6, stroke=1, fill=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.rect(0, 0, width, height, stroke=0, fill=1)
+
+    c.setLineWidth(3)
+    c.setStrokeColor(black)
+    c.rect(border_margin, border_margin, width - 2 * border_margin, height - 1.5 * border_margin)
+
+    c.setLineWidth(2.5)
+    c.setStrokeColor(green)
+    c.rect(
+        border_margin + inner_margin,
+        height - border_margin - header_height,
+        width - 2 * (border_margin + inner_margin),
+        header_height,
+    )
+
+    c.setFont("Helvetica-Bold", 24)
+    c.setFillColor(green)
+    c.drawCentredString(width / 2, height - border_margin - header_height / 2 + 10, random.choice(CLINIC_NAMES))
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(width / 2, height - border_margin - header_height / 2 - 13, f"{form_type} | Synthetic data")
+
+    content_y_top = height - border_margin - 1.2 * header_height + 1.8 * inner_margin
+    content_height = content_y_top - border_margin - 2 * inch
+    content_x = border_margin + inner_margin
+    content_y = border_margin + 1.5 * inch
+    content_width = width - 2 * (border_margin + inner_margin)
+
+    c.setLineWidth(2)
+    c.setStrokeColor(green)
+    c.rect(content_x, content_y, content_width, content_height)
 
     c.setFont("Helvetica-Bold", 9)
-    c.setFillColor(HexColor("#27745f"))
-    y = top - 0.35 * inch
+    c.setFillColor(green)
+    label_x = border_margin + 0.82 * inch
+    y = content_y_top - 1.2 * inch
+    gap = 0.72 * inch
     for label in labels:
-        c.drawString(left + 0.22 * inch, y, label.upper())
-        c.setStrokeColor(HexColor("#d7e4df"))
-        c.line(left + 0.22 * inch, y - 0.12 * inch, left + box_width - 0.22 * inch, y - 0.12 * inch)
-        y -= row_height
+        c.drawString(label_x, y, f"{label}:")
+        y -= gap
+
+    footer_height = 1 * inch
+    c.setLineWidth(2)
+    c.setStrokeColor(green)
+    c.rect(
+        border_margin + inner_margin,
+        border_margin + inner_margin,
+        width - 2 * (border_margin + inner_margin),
+        footer_height,
+    )
+
+    return content_x, content_y, content_width, content_height
 
 
-def _draw_handwriting_image(c: canvas.Canvas, handwriting_image: str, width: float, height: float) -> None:
+def _draw_handwriting_image(c: canvas.Canvas, handwriting_image: str, content_box: tuple[float, float, float, float]) -> None:
     if not os.path.exists(handwriting_image):
         return
 
-    # Keep the printed form labels readable by reserving a left label column.
-    image_x = 2.05 * inch
-    image_y = 2.35 * inch
-    image_width = width - image_x - 0.9 * inch
-    image_height = 5.15 * inch
+    content_x, content_y, content_width, content_height = content_box
+    image_x = content_x + 2.1 * inch
+    image_y = content_y + 0.4 * inch
+    image_width = content_width - 2.45 * inch
+    image_height = content_height - 0.8 * inch
 
     c.drawImage(
         handwriting_image,
@@ -101,13 +117,10 @@ def generate_medical_form(
     c = canvas.Canvas(pdf_path, pagesize=A4)
     width, height = A4
 
-    _draw_paper_texture(c, width, height)
-    _draw_header(c, width, height, form_type)
-    _draw_form_lines(c, width, height, form_type)
+    content_box = _draw_original_style_form(c, width, height, form_type)
+    _draw_handwriting_image(c, handwriting_image, content_box)
 
-    _draw_handwriting_image(c, handwriting_image, width, height)
-
-    c.setStrokeColor(HexColor("#78a99a"))
+    c.setStrokeColor(green)
     c.setLineWidth(1)
     c.line(width - 2.65 * inch, 1.2 * inch, width - 0.75 * inch, 1.2 * inch)
 
