@@ -89,10 +89,10 @@ def _draw_handwriting_image(c: canvas.Canvas, handwriting_image: str, content_bo
         return
 
     content_x, content_y, content_width, content_height = content_box
-    image_x = content_x + 2.1 * inch
-    image_y = content_y + 0.4 * inch
-    image_width = content_width - 2.45 * inch
-    image_height = content_height - 0.8 * inch
+    image_x = content_x + 2.0 * inch
+    image_y = content_y + 1.05 * inch
+    image_width = content_width - 2.35 * inch
+    image_height = 3.75 * inch
 
     c.drawImage(
         handwriting_image,
@@ -120,7 +120,7 @@ def generate_medical_form(
     content_box = _draw_original_style_form(c, width, height, form_type)
     _draw_handwriting_image(c, handwriting_image, content_box)
 
-    c.setStrokeColor(green)
+    c.setStrokeColor(HexColor("#78a99a"))
     c.setLineWidth(1)
     c.line(width - 2.65 * inch, 1.2 * inch, width - 0.75 * inch, 1.2 * inch)
 
