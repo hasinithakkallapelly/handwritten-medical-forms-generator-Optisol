@@ -27,14 +27,17 @@ SIGNATURE_DIR = Path("signatures")
 def _signature_images() -> list[str]:
     if not SIGNATURE_DIR.exists():
         return []
-    return [str(path) for path in SIGNATURE_DIR.iterdir() if path.suffix.lower() in {".png", ".jpg", ".jpeg"}]
+    return [str(path) for path in SIGNATURE_DIR.iterdir() if path.suffix.lower() in {".png", ".jpg", "jpeg"}]
 
 
 def _pdf_preview(path: str) -> None:
     doc = fitz.open(path)
-    page = doc.load_page(0)
-    pix = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
-    st.image(pix.tobytes("png"), use_container_width=True)
+    try:
+        page = doc.load_page(0)
+        pix = page.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), alpha=False)
+        st.image(pix.tobytes("png"), use_container_width=True)
+    finally:
+        doc.close()
 
 
 def _zip_files(pdf_paths: list[str]) -> str:
@@ -97,17 +100,6 @@ if generate:
     status.write("Generating handwriting samples...")
 
     try:
-        records = generate_handwriting_dataset(
-            n=int(num_forms),
-            clean_dir=str(CLEAN_IMAGE_DIR),
-            clumsy_dir=str(PATIENT_IMAGE_DIR),
-            form_type=form_type,
-            warp_strength=float(warp_strength),
-            noise_std=float(noise_std),
-            strikeout_prob=float(strikeout_prob),
-            scribble_prob=float(scrib_prob),
-        )
-    except NameError:
         records = generate_handwriting_dataset(
             n=int(num_forms),
             clean_dir=str(CLEAN_IMAGE_DIR),
