@@ -27,7 +27,7 @@ SIGNATURE_DIR = Path("signatures")
 def _signature_images() -> list[str]:
     if not SIGNATURE_DIR.exists():
         return []
-    return [str(path) for path in SIGNATURE_DIR.iterdir() if path.suffix.lower() in {".png", ".jpg", "jpeg"}]
+    return [str(path) for path in SIGNATURE_DIR.iterdir() if path.suffix.lower() in {".png", ".jpg", ".jpeg"}]
 
 
 def _pdf_preview(path: str) -> None:
