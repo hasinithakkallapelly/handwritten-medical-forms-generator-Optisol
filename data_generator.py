@@ -122,29 +122,29 @@ def generate_fake_patient() -> dict[str, str | int]:
 def patient_to_lines(patient: dict[str, str | int], form_type: str = "Prescription Form") -> list[str]:
     if form_type == "Patient Intake Form":
         return [
-            f"Name: {patient['name']}",
-            f"DOB: {patient['date_of_birth']}   Age: {patient['age']}",
-            f"Reason: {patient['complaints']}",
-            f"Allergies: {patient['allergies']}",
-            f"Insurance: {patient['insurance']}",
-            f"Date: {patient['visit_date']}",
+            str(patient["name"]),
+            f"{patient['date_of_birth']}   Age {patient['age']}",
+            str(patient["complaints"]),
+            str(patient["allergies"]),
+            str(patient["insurance"]),
+            str(patient["visit_date"]),
         ]
 
     if form_type == "Lab Request Form":
         return [
-            f"Patient: {patient['name']}",
-            f"DOB: {patient['date_of_birth']}   Age: {patient['age']}",
-            f"Clinical note: {patient['condition']}",
-            f"Symptoms: {patient['complaints']}",
-            "Tests: CBC, FBS, HbA1c, Urine routine",
-            f"Requested by: {patient['doctor']}",
+            str(patient["name"]),
+            f"{patient['date_of_birth']}   Age {patient['age']}",
+            str(patient["condition"]),
+            str(patient["complaints"]),
+            "CBC, FBS, HbA1c, Urine routine",
+            str(patient["doctor"]),
         ]
 
     return [
-        f"Name: {patient['name']}",
-        f"DOB: {patient['date_of_birth']}   Age: {patient['age']}",
-        f"Complaint: {patient['complaints']}",
-        f"Diagnosis: {patient['condition']}",
-        f"Rx: {patient['medications']}",
-        f"Advice: {patient['advice']}",
+        str(patient["name"]),
+        f"{patient['date_of_birth']}   Age {patient['age']}",
+        str(patient["complaints"]),
+        str(patient["condition"]),
+        str(patient["medications"]),
+        str(patient["advice"]),
     ]
