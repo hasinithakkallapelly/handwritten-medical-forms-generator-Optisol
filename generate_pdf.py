@@ -89,10 +89,10 @@ def _draw_handwriting_image(c: canvas.Canvas, handwriting_image: str, content_bo
         return
 
     content_x, content_y, content_width, content_height = content_box
-    image_x = content_x + 2.0 * inch
-    image_y = content_y + 1.05 * inch
-    image_width = content_width - 2.35 * inch
-    image_height = 3.75 * inch
+    image_x = content_x + 1.65 * inch
+    image_y = content_y + 2.85 * inch
+    image_width = content_width - 2.0 * inch
+    image_height = 3.3 * inch
 
     c.drawImage(
         handwriting_image,
